@@ -2,8 +2,8 @@
 /*
 Plugin Name: دستیار تست انار
 Description: افزونه‌ای برای حذف همه محصولات، ویژگی‌ها و دسته‌بندی‌های ووکامرس، با انحصارات دسته پیش‌فرض محصول.
-Version: 1.5
-Author: حامد موثق پور
+Version: 1.6
+Author: Hamed Movasaqpoor
 Text Domain: woocommerce-cleanup
 Domain Path: /languages
 */
