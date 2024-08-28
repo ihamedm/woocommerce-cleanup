@@ -12,25 +12,26 @@ function wc_cleanup_page() {
     <div class="wrap">
         <h1>پاکسازی ووکامرس</h1>
         <p>گزینه‌های مورد نظر خود را برای حذف انتخاب کنید و دکمه زیر را برای انجام عملیات کلیک کنید. این عملیات غیرقابل بازگشت است.</p>
-        <form method="post" action="">
+        <form id="wc_cleanup_form" method="post" action="">
             <?php wp_nonce_field('wc_cleanup_nonce', 'wc_cleanup_nonce_field'); ?>
             <input type="checkbox" name="wc_cleanup_items[]" value="products" checked> محصولات<br>
             <input type="checkbox" name="wc_cleanup_items[]" value="attributes" checked> ویژگی‌ها<br>
             <input type="checkbox" name="wc_cleanup_items[]" value="categories" checked> دسته‌بندی‌ها (دسته پیش‌فرض حذف نمی‌شود)<br>
-            <input type="checkbox" name="wc_cleanup_items[]" value="media"> حذف همه رسانه‌ها<br><br>
+            <input type="checkbox" name="wc_cleanup_items[]" value="media" checked> حذف همه رسانه‌ها<br><br>
             <input type="hidden" name="wc_cleanup_action" value="cleanup">
-            <input type="submit" class="button button-primary" value="شروع پاکسازی" onclick="return confirm('آیا مطمئن هستید که می‌خواهید موارد انتخاب شده را حذف کنید؟ این عملیات قابل بازگشت نیست.');">
+            <input type="submit" class="button button-primary" value="شروع پاکسازی">
         </form>
 
-        <br>
+
+
         <hr>
-        <h1>انتشار همه محصولات پیش‌نویس</h1>
-        <form method="post" action="">
-            <?php wp_nonce_field('wc_publish_drafts_nonce', 'wc_publish_drafts_nonce_field'); ?>
-            <input type="hidden" name="wc_publish_drafts_action" value="publish_drafts">
-            <input type="submit" class="button button-secondary" value="انتشار همه محصولات پیش‌نویس" onclick="return confirm('آیا مطمئن هستید که می‌خواهید همه محصولات پیش‌نویس را منتشر کنید؟');">
-        </form>
+            <button id="publish-drafted-products" class="button button-primary">۱۰۰ محصول پابلیش کن</button>
+
+
+        <hr>
+        <?php include_once 'clean-cart-session.php';?>
     </div>
+
     <?php
 }
 
@@ -64,6 +65,39 @@ function wc_cleanup_run($cleanup_items) {
     }
     add_action('admin_notices', 'wc_cleanup_success_notice');
 }
+
+
+add_action('wp_ajax_wc_cleanup_item', 'wc_cleanup_item');
+function wc_cleanup_item() {
+    check_ajax_referer('wc_cleanup_nonce', 'nonce');
+
+    $item = sanitize_text_field($_POST['item']);
+
+    try {
+        switch ($item) {
+            case 'products':
+                remove_all_products();
+                break;
+            case 'attributes':
+                remove_all_product_attributes();
+                break;
+            case 'categories':
+                remove_all_product_categories();
+                break;
+            case 'media':
+                remove_all_media();
+                break;
+            default:
+                throw new Exception('مورد نامعتبر است');
+        }
+
+        wp_send_json_success();
+    } catch (Exception $e) {
+        wp_send_json_error($e->getMessage());
+    }
+}
+
+
 
 function wc_cleanup_success_notice() {
     ?>
@@ -148,41 +182,31 @@ function wc_cleanup_toolbar_button($wp_admin_bar) {
     }
 }
 
-// Handle form submission for publishing drafted products
-add_action('admin_init', 'wc_publish_drafts_handle_action');
+function my_plugin_publish_drafted_products() {
+    check_ajax_referer('wc_cleanup_nonce', 'nonce');
 
-function wc_publish_drafts_handle_action() {
-    if (isset($_POST['wc_publish_drafts_action']) && $_POST['wc_publish_drafts_action'] === 'publish_drafts') {
-        if (!isset($_POST['wc_publish_drafts_nonce_field']) || !wp_verify_nonce($_POST['wc_publish_drafts_nonce_field'], 'wc_publish_drafts_nonce')) {
-            return;
-        }
-        publish_all_drafted_products();
-    }
-}
-
-function publish_all_drafted_products() {
     $args = array(
         'post_type' => 'product',
         'post_status' => 'draft',
-        'posts_per_page' => -1,
-        'fields' => 'ids',
+        'posts_per_page' => 100
     );
-    $drafts = get_posts($args);
-    foreach ($drafts as $product_id) {
-        $product = array(
-            'ID' => $product_id,
-            'post_status' => 'publish',
-        );
-        wp_update_post($product);
-    }
-    add_action('admin_notices', 'wc_publish_drafts_success_notice');
-}
 
-function wc_publish_drafts_success_notice() {
-    ?>
-    <div class="notice notice-success is-dismissible">
-        <p><?php _e('همه محصولات پیش‌نویس با موفقیت منتشر شدند.', 'wc-cleanup'); ?></p>
-    </div>
-    <?php
+    $drafts = get_posts($args);
+
+    if (empty($drafts)) {
+        wp_send_json_error(array('message' => 'No drafted products found.'));
+    }
+
+    foreach ($drafts as $draft) {
+        wp_update_post(array(
+            'ID' => $draft->ID,
+            'post_status' => 'publish'
+        ));
+    }
+
+    wp_send_json_success(array('message' => '50 drafted products have been published.'));
 }
+add_action('wp_ajax_publish_drafted_products', 'my_plugin_publish_drafted_products');
+
+
 ?>
