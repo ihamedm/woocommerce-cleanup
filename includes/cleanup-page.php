@@ -167,6 +167,12 @@ function remove_all_media() {
     }
 }
 
+function remove_all_options(){
+    delete_option('awca_proceed_products');
+    delete_option('awca_total_products');
+    delete_option('awca_product_save_lock');
+}
+
 // Add a button to the admin toolbar
 add_action('admin_bar_menu', 'wc_cleanup_toolbar_button', 100);
 
